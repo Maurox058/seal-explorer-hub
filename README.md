@@ -60,9 +60,54 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## Building the Project
+
+To build the project for production:
+
+```sh
+npm run build
+```
+
+This will create an optimized production build in the `dist` folder.
+
+To preview the production build locally:
+
+```sh
+npm run preview
+```
+
 ## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+### Automated Deployment with GitHub Actions
+
+This project is configured with GitHub Actions for automated deployment to GitHub Pages. The deployment workflow will:
+
+1. Automatically trigger on every push to the `main` branch
+2. Install dependencies and build the project
+3. Deploy the built files to GitHub Pages
+
+To enable GitHub Pages deployment:
+
+1. Go to your repository settings on GitHub
+2. Navigate to **Pages** in the left sidebar
+3. Under **Source**, select **GitHub Actions**
+4. The website will be available at: `https://<username>.github.io/<repository-name>/`
+
+### Custom Domain
+
+This project is configured to use the custom domain: **todofocas.com**
+
+The CNAME file is already set up. To activate the custom domain:
+
+1. Configure your DNS provider to point to GitHub Pages:
+   - Add a CNAME record pointing to `<username>.github.io`
+   - Or add A records pointing to GitHub's IP addresses
+2. In your repository settings, go to **Pages** and enter your custom domain
+3. Wait for DNS propagation (can take up to 24-48 hours)
+
+### Manual Deployment
+
+You can also use [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish for manual deployment.
 
 ## Can I connect a custom domain to my Lovable project?
 
