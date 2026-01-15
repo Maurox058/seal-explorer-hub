@@ -1,6 +1,16 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { CheckCircle, XCircle, RotateCcw, Trophy, Brain } from 'lucide-react';
 import { quizQuestions } from '@/data/sealsData';
+
+// Función para mezclar un array (Fisher-Yates shuffle)
+const shuffleArray = <T,>(array: T[]): T[] => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
 
 const QuizSection = () => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -9,8 +19,27 @@ const QuizSection = () => {
   const [score, setScore] = useState(0);
   const [quizComplete, setQuizComplete] = useState(false);
   const [answeredQuestions, setAnsweredQuestions] = useState<number[]>([]);
+  const [shuffleKey, setShuffleKey] = useState(0);
 
-  const question = quizQuestions[currentQuestion];
+  // Mezclar las preguntas y sus respuestas al inicio y cuando se reinicia
+  const shuffledQuestions = useMemo(() => {
+    return shuffleArray(quizQuestions.map(q => {
+      // Crear un array de opciones con sus índices originales
+      const optionsWithIndex = q.options.map((opt, idx) => ({ text: opt, originalIndex: idx }));
+      const shuffledOptions = shuffleArray(optionsWithIndex);
+      
+      // Encontrar el nuevo índice de la respuesta correcta
+      const newCorrectIndex = shuffledOptions.findIndex(opt => opt.originalIndex === q.correctAnswer);
+      
+      return {
+        ...q,
+        options: shuffledOptions.map(opt => opt.text),
+        correctAnswer: newCorrectIndex
+      };
+    }));
+  }, [shuffleKey]);
+
+  const question = shuffledQuestions[currentQuestion];
   const isCorrect = selectedAnswer === question.correctAnswer;
 
   const handleAnswer = (index: number) => {
@@ -41,10 +70,11 @@ const QuizSection = () => {
     setScore(0);
     setQuizComplete(false);
     setAnsweredQuestions([]);
+    setShuffleKey(prev => prev + 1); // Forzar nuevo shuffle
   };
 
   const getScoreMessage = () => {
-    const percentage = (score / quizQuestions.length) * 100;
+    const percentage = (score / shuffledQuestions.length) * 100;
     if (percentage === 100) return '¡Perfecto! Eres un experto en focas! 🎉';
     if (percentage >= 80) return '¡Excelente! Conoces muy bien a las focas! 🌟';
     if (percentage >= 60) return '¡Bien hecho! Tienes buenos conocimientos. 👍';
@@ -75,7 +105,7 @@ const QuizSection = () => {
               <div className="flex items-center gap-2">
                 <Brain className="h-5 w-5 text-primary" />
                 <span className="text-sm font-medium text-muted-foreground">
-                  Pregunta {currentQuestion + 1} de {quizQuestions.length}
+                  Pregunta {currentQuestion + 1} de {shuffledQuestions.length}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -90,7 +120,7 @@ const QuizSection = () => {
             <div className="h-2 bg-muted rounded-full mb-8 overflow-hidden">
               <div 
                 className="h-full bg-primary transition-all duration-500"
-                style={{ width: `${((currentQuestion + 1) / quizQuestions.length) * 100}%` }}
+                style={{ width: `${((currentQuestion + 1) / shuffledQuestions.length) * 100}%` }}
               />
             </div>
 
@@ -165,7 +195,7 @@ const QuizSection = () => {
                 onClick={nextQuestion}
                 className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-colors"
               >
-                {currentQuestion < quizQuestions.length - 1 ? 'Siguiente Pregunta' : 'Ver Resultados'}
+                {currentQuestion < shuffledQuestions.length - 1 ? 'Siguiente Pregunta' : 'Ver Resultados'}
               </button>
             )}
           </div>
@@ -181,7 +211,7 @@ const QuizSection = () => {
             </h3>
             
             <div className="text-6xl font-display font-bold text-primary my-6">
-              {score}/{quizQuestions.length}
+              {score}/{shuffledQuestions.length}
             </div>
             
             <p className="text-lg text-muted-foreground mb-8">
