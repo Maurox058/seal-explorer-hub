@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { CheckCircle, XCircle, RotateCcw, Trophy, Brain } from 'lucide-react';
-import { quizQuestions } from '@/data/sealsData';
+import { sealsData } from '@/data/sealsData';
 
 // Función para mezclar un array (Fisher-Yates shuffle)
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -12,6 +12,134 @@ const shuffleArray = <T,>(array: T[]): T[] => {
   return shuffled;
 };
 
+type QuizQuestion = {
+  id: string;
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation: string;
+};
+
+const pickRandom = <T,>(items: T[]) => items[Math.floor(Math.random() * items.length)];
+
+const buildOptions = (correct: string, pool: string[], count = 4) => {
+  const uniquePool = Array.from(new Set(pool.filter((item) => item !== correct)));
+  const options = [correct];
+  while (options.length < count && uniquePool.length > 0) {
+    const index = Math.floor(Math.random() * uniquePool.length);
+    options.push(uniquePool.splice(index, 1)[0]);
+  }
+  if (options.length < count) return null;
+  return shuffleArray(options);
+};
+
+const generateQuizQuestions = (count: number): QuizQuestion[] => {
+  const allDiets = sealsData.flatMap((s) => s.diet);
+  const allRegions = sealsData.flatMap((s) => s.regions);
+  const allThreats = sealsData.flatMap((s) => s.threats);
+  const allBehaviors = sealsData.flatMap((s) => s.behaviors);
+  const allHabitats = sealsData.map((s) => s.habitat);
+  const allScientificNames = sealsData.map((s) => s.scientificName);
+  const allSpanishNames = sealsData.map((s) => s.spanishName);
+
+  const questionPool: QuizQuestion[] = [];
+
+  sealsData.forEach((species) => {
+    // Nombre científico
+    const sciOptions = buildOptions(
+      species.scientificName,
+      allScientificNames,
+    );
+    if (sciOptions) {
+      questionPool.push({
+        id: `sci-${species.id}`,
+        question: `¿Cuál es el nombre científico de la ${species.spanishName}?`,
+        options: sciOptions,
+        correctAnswer: sciOptions.indexOf(species.scientificName),
+        explanation: `El nombre científico de la ${species.spanishName} es ${species.scientificName}.`,
+      });
+    }
+
+    // Especie por nombre científico
+    const speciesOptions = buildOptions(species.spanishName, allSpanishNames);
+    if (speciesOptions) {
+      questionPool.push({
+        id: `spanish-${species.id}`,
+        question: `¿Qué especie corresponde al nombre científico ${species.scientificName}?`,
+        options: speciesOptions,
+        correctAnswer: speciesOptions.indexOf(species.spanishName),
+        explanation: `${species.scientificName} corresponde a la ${species.spanishName}.`,
+      });
+    }
+
+    // Hábitat
+    const habitatOptions = buildOptions(species.habitat, allHabitats);
+    if (habitatOptions) {
+      questionPool.push({
+        id: `habitat-${species.id}`,
+        question: `¿En qué hábitat vive principalmente la ${species.spanishName}?`,
+        options: habitatOptions,
+        correctAnswer: habitatOptions.indexOf(species.habitat),
+        explanation: `La ${species.spanishName} habita en: ${species.habitat}.`,
+      });
+    }
+
+    // Región
+    const regionCorrect = pickRandom(species.regions);
+    const regionOptions = buildOptions(regionCorrect, allRegions);
+    if (regionOptions) {
+      questionPool.push({
+        id: `region-${species.id}-${regionCorrect}`,
+        question: `¿En qué región se encuentra la ${species.spanishName}?`,
+        options: regionOptions,
+        correctAnswer: regionOptions.indexOf(regionCorrect),
+        explanation: `La ${species.spanishName} se distribuye en regiones como: ${species.regions.join(', ')}.`,
+      });
+    }
+
+    // Dieta
+    const dietCorrect = pickRandom(species.diet);
+    const dietOptions = buildOptions(dietCorrect, allDiets);
+    if (dietOptions) {
+      questionPool.push({
+        id: `diet-${species.id}-${dietCorrect}`,
+        question: `¿Cuál de estos alimentos forma parte de la dieta de la ${species.spanishName}?`,
+        options: dietOptions,
+        correctAnswer: dietOptions.indexOf(dietCorrect),
+        explanation: `La ${species.spanishName} se alimenta de: ${species.diet.join(', ')}.`,
+      });
+    }
+
+    // Amenazas
+    const threatCorrect = pickRandom(species.threats);
+    const threatOptions = buildOptions(threatCorrect, allThreats);
+    if (threatOptions) {
+      questionPool.push({
+        id: `threat-${species.id}-${threatCorrect}`,
+        question: `¿Cuál es una amenaza para la ${species.spanishName}?`,
+        options: threatOptions,
+        correctAnswer: threatOptions.indexOf(threatCorrect),
+        explanation: `Entre las amenazas de la ${species.spanishName} están: ${species.threats.join(', ')}.`,
+      });
+    }
+
+    // Comportamientos
+    const behaviorCorrect = pickRandom(species.behaviors);
+    const behaviorOptions = buildOptions(behaviorCorrect, allBehaviors);
+    if (behaviorOptions) {
+      questionPool.push({
+        id: `behavior-${species.id}-${behaviorCorrect}`,
+        question: `¿Qué comportamiento es típico de la ${species.spanishName}?`,
+        options: behaviorOptions,
+        correctAnswer: behaviorOptions.indexOf(behaviorCorrect),
+        explanation: `Comportamientos típicos: ${species.behaviors.join(', ')}.`,
+      });
+    }
+  });
+
+  return shuffleArray(questionPool).slice(0, Math.min(count, questionPool.length));
+};
+
 const QuizSection = () => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -21,22 +149,9 @@ const QuizSection = () => {
   const [answeredQuestions, setAnsweredQuestions] = useState<number[]>([]);
   const [shuffleKey, setShuffleKey] = useState(0);
 
-  // Mezclar las preguntas y sus respuestas al inicio y cuando se reinicia
+  // Generar preguntas dinámicas al inicio y cuando se reinicia
   const shuffledQuestions = useMemo(() => {
-    return shuffleArray(quizQuestions.map(q => {
-      // Crear un array de opciones con sus índices originales
-      const optionsWithIndex = q.options.map((opt, idx) => ({ text: opt, originalIndex: idx }));
-      const shuffledOptions = shuffleArray(optionsWithIndex);
-      
-      // Encontrar el nuevo índice de la respuesta correcta
-      const newCorrectIndex = shuffledOptions.findIndex(opt => opt.originalIndex === q.correctAnswer);
-      
-      return {
-        ...q,
-        options: shuffledOptions.map(opt => opt.text),
-        correctAnswer: newCorrectIndex
-      };
-    }));
+    return generateQuizQuestions(5);
   }, [shuffleKey]);
 
   const question = shuffledQuestions[currentQuestion];
@@ -54,7 +169,7 @@ const QuizSection = () => {
   };
 
   const nextQuestion = () => {
-    if (currentQuestion < quizQuestions.length - 1) {
+    if (currentQuestion < shuffledQuestions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
       setSelectedAnswer(null);
       setShowResult(false);
